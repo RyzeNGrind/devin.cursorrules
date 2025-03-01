@@ -116,6 +116,16 @@ def create_llm_client(provider="openai"):
             base_url="http://192.168.180.137:8006/v1",
             api_key="not-needed"
         )
+    elif provider == "ollama":
+        import ollama
+        base_url = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
+        return ollama.Client(host=base_url)
+    elif provider == "lm-studio":
+        base_url = os.getenv('LM_STUDIO_BASE_URL', 'http://localhost:1234')
+        return OpenAI(
+            base_url=base_url,
+            api_key="not-needed"
+        )
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 
@@ -153,8 +163,12 @@ def query_llm(prompt: str, client=None, model=None, provider="openai", image_pat
                 model = "gemini-pro"
             elif provider == "local":
                 model = "Qwen/Qwen2.5-32B-Instruct-AWQ"
+            elif provider == "ollama":
+                model = os.getenv('OLLAMA_MODEL', 'mistral')
+            elif provider == "lm-studio":
+                model = "local-model"  # LM Studio handles model selection in its UI
         
-        if provider in ["openai", "local", "deepseek", "azure", "siliconflow"]:
+        if provider in ["openai", "local", "deepseek", "azure", "siliconflow", "lm-studio"]:
             messages = [{"role": "user", "content": []}]
             
             # Add text content
@@ -235,6 +249,15 @@ def query_llm(prompt: str, client=None, model=None, provider="openai", image_pat
             response = chat_session.send_message(prompt)
             return response.text
             
+        elif provider == "ollama":
+            response = client.chat(model=model, messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ])
+            return response['message']['content']
+            
     except Exception as e:
         print(f"Error querying LLM: {e}", file=sys.stderr)
         return None
@@ -242,7 +265,10 @@ def query_llm(prompt: str, client=None, model=None, provider="openai", image_pat
 def main():
     parser = argparse.ArgumentParser(description='Query an LLM with a prompt')
     parser.add_argument('--prompt', type=str, help='The prompt to send to the LLM', required=True)
-    parser.add_argument('--provider', choices=['openai','anthropic','gemini','local','deepseek','azure','siliconflow'], default='openai', help='The API provider to use')
+    parser.add_argument('--provider', 
+                       choices=['openai', 'anthropic', 'gemini', 'local', 'deepseek', 'azure', 'siliconflow', 'ollama', 'lm-studio'],
+                       default='openai',
+                       help='The API provider to use')
     parser.add_argument('--model', type=str, help='The model to use (default depends on provider)')
     parser.add_argument('--image', type=str, help='Path to an image file to attach to the prompt')
     args = parser.parse_args()
@@ -260,6 +286,10 @@ def main():
             args.model = "gemini-2.0-flash-exp"
         elif args.provider == 'azure':
             args.model = os.getenv('AZURE_OPENAI_MODEL_DEPLOYMENT', 'gpt-4o-ms')  # Get from env with fallback
+        elif args.provider == "ollama":
+            args.model = os.getenv('OLLAMA_MODEL', 'mistral')
+        elif args.provider == "lm-studio":
+            args.model = "local-model"  # LM Studio handles model selection in its UI
 
     client = create_llm_client(args.provider)
     response = query_llm(args.prompt, client, model=args.model, provider=args.provider, image_path=args.image)

@@ -6,6 +6,16 @@ def setup_env_file():
     """Set up the .env file with API key if provided"""
     llm_provider = '{{ cookiecutter["llm_provider [Optional. Press Enter to use None]"] }}'
     
+    # If provider is local, set up local configuration
+    if llm_provider.endswith('(Local)'):
+        if not os.path.exists('.env'):
+            with open('.env', 'w') as f:
+                if llm_provider == 'Ollama (Local)':
+                    f.write('OLLAMA_BASE_URL=http://localhost:11434\n')
+                elif llm_provider == 'LM Studio (Local)':
+                    f.write('LM_STUDIO_BASE_URL=http://localhost:1234\n')
+        return
+
     # If provider != 'None', retrieve whatever was saved in pre_gen_project.py
     if llm_provider != 'None':
         if os.path.exists(".temp_api_key"):

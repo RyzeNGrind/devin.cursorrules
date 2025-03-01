@@ -5,7 +5,17 @@ import sys
 project_name = '{{ cookiecutter.project_name }}'
 project_type = '{{ cookiecutter.project_type }}'
 llm_provider = '{{ cookiecutter["llm_provider [Optional. Press Enter to use None]"] }}'
-valid_providers = ['None', 'OpenAI', 'Anthropic', 'DeepSeek', 'Google', 'Azure OpenAI', 'Siliconflow']
+valid_providers = [
+    'None', 
+    'OpenAI', 
+    'Anthropic', 
+    'DeepSeek', 
+    'Google', 
+    'Azure OpenAI', 
+    'Siliconflow',
+    'Ollama (Local)',
+    'LM Studio (Local)'
+]
 
 # Validate project name
 if not re.match(r'^[a-z][-a-z0-9]+$', project_name):
@@ -22,8 +32,8 @@ if llm_provider not in valid_providers:
     print(f'ERROR: LLM provider must be one of: {", ".join(valid_providers)}')
     sys.exit(1)
 
-# Only ask for the key if provider is not 'None'
-if llm_provider != 'None':
+# Only ask for the key if provider is not 'None' and not a local provider
+if llm_provider != 'None' and not llm_provider.endswith('(Local)'):
     print("\nYou've chosen to enable advanced AI features with " + llm_provider + ".")
     print("These features include:")
     print("- Multi-modal analysis (e.g., screenshot verification for frontend development)")

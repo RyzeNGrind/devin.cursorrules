@@ -60,7 +60,12 @@ The LLM API supports multiple providers:
 - DeepSeek (model: deepseek-chat)
 - Anthropic (model: claude-3-sonnet-20240229)
 - Gemini (model: gemini-pro)
-- Local LLM (model: Qwen/Qwen2.5-32B-Instruct-AWQ)
+- Ollama (local, default model: mistral, configurable via OLLAMA_MODEL in .env)
+- LM Studio (local, model configured in LM Studio UI, accessed via REST API)
+
+For local LLM providers:
+- Ollama: Ensure Ollama is running locally (http://localhost:11434)
+- LM Studio: Start LM Studio and enable the local server (http://localhost:1234)
 
 But usually it's a better idea to check the content of the file and use the APIs in the `tools/llm_api.py` file to invoke the LLM if needed.
 
