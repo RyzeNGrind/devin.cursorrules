@@ -1,6 +1,39 @@
 import os
 import shutil
 import platform
+from pathlib import Path, PurePath
+from tempfile import TemporaryDirectory
+
+
+def _move_single_file(src_dir: PurePath, dst_dir: PurePath, file_name: str):
+    shutil.move(
+        str(src_dir.joinpath(file_name)),
+        dst_dir.joinpath(file_name),
+        copy_function=lambda x, y: shutil.copytree(
+            x, y, dirs_exist_ok=True, copy_function=shutil.copy2
+        ),
+    )
+
+
+def move_directory_contents(src: PurePath, dst: PurePath):
+    temp_dir = TemporaryDirectory()
+    temp_dir_path = Path(temp_dir.name)
+
+    directory_contents = os.listdir(src)
+    for item in directory_contents:
+        print(f"Moving {item} to {temp_dir_path}")
+        _move_single_file(src, temp_dir_path, item)
+
+    directory_contents.remove(src.name)
+
+    for item in directory_contents:
+        print(f"Moving {item} to {dst}")
+        _move_single_file(temp_dir_path, dst, item)
+
+    os.removedirs(src)
+
+    _move_single_file(temp_dir_path, dst, src.name)
+
 
 def setup_env_file():
     """Set up the .env file with API key if provided"""
@@ -50,6 +83,7 @@ def setup_env_file():
                                 f.write(line)
                         if not key_found:
                             f.write(f'{env_var_name}={llm_api_key}\n')
+
 
 def handle_ide_rules():
     """Handle IDE-specific rules files based on project type"""
@@ -126,6 +160,7 @@ def handle_ide_rules():
             with open('.github/copilot-instructions.md', 'w') as f:
                 f.writelines(content)
 
+
 def main():
     """Main function to set up the project"""
     setup_env_file()
@@ -151,5 +186,45 @@ def main():
         print("   source venv/bin/activate")
     print("2. Check the README.md file for more information")
 
-if __name__ == '__main__':
-    main()
+    if "{{ cookiecutter.use_current_directory }}".lower() == "y":
+        import sys
+        current_path = Path(os.getcwd()).resolve()
+        print(f"\nPOST-GEN DEBUG: Current path: {current_path}")
+        
+        # Nuclear path resolution
+        generated_dir = current_path / "{{ cookiecutter.project_name }}"
+        if not generated_dir.exists():
+            generated_dir = current_path.parent / "{{ cookiecutter.project_name }}"
+            
+        print(f"POST-GEN DEBUG: Final generated_dir: {generated_dir}")
+
+        if generated_dir.exists() and generated_dir.is_dir():
+            print("MOVING FILES TO PARENT DIRECTORY:")
+            # Move all contents including hidden files
+            for item in generated_dir.glob('*'):
+                dest = current_path / item.name
+                print(f"Moving: {item} -> {dest}")
+                
+                # Nuclear removal of existing files
+                if dest.exists():
+                    if dest.is_dir():
+                        shutil.rmtree(dest, ignore_errors=True)
+                    else:
+                        try:
+                            dest.unlink()
+                        except:
+                            pass
+                
+                shutil.move(str(item), str(current_path))
+            
+            # Remove the now-empty directory
+            try:
+                generated_dir.rmdir()
+                print(f"Removed empty directory: {generated_dir}")
+            except OSError as e:
+                print(f"Error removing directory: {str(e)}")
+            
+            print("FILE MOVEMENT COMPLETED SUCCESSFULLY")
+        else:
+            print(f"ERROR: Generated directory not found at {generated_dir}!")
+            sys.exit(1)
